@@ -4,6 +4,7 @@
  * Designed to run as a Digital Ocean App
  */
 
+import 'dotenv/config';
 import express from 'express';
 import pg from 'pg';
 
@@ -16,8 +17,8 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Database connection using environment variables
-const dbClient = new Client({
+// Database connection configuration
+const dbConfig = {
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'bot_activity',
@@ -26,14 +27,21 @@ const dbClient = new Client({
   ssl: process.env.DB_SSL === 'true' ? {
     rejectUnauthorized: false,
   } : undefined,
-});
+};
+
+let dbClient: InstanceType<typeof Client>;
 
 // Connect to database with retry logic
 async function connectWithRetry(maxRetries = 5, delay = 5000) {
   for (let i = 0; i < maxRetries; i++) {
     try {
+      // Create a new client for each attempt
+      dbClient = new Client(dbConfig);
       await dbClient.connect();
       console.log('✓ Connected to database');
+      console.log(`  Host: ${dbConfig.host}`);
+      console.log(`  Database: ${dbConfig.database}`);
+      console.log(`  User: ${dbConfig.user}`);
       return;
     } catch (err) {
       console.error(`Database connection attempt ${i + 1}/${maxRetries} failed:`, err);
